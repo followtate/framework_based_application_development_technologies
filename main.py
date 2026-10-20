@@ -1,175 +1,240 @@
+"""Консольное приложение управления списками литературы."""
 
-from datetime import date, datetime
-
-
-def register_user(full_name: str, email: str, login: str) -> dict:
-    """Регистрирует пользователя и возвращает его карточку."""
-    if not full_name.strip():
-        raise ValueError("ФИО пользователя не может быть пустым")
-    if "@" not in email or "." not in email:
-        raise ValueError("Некорректный email пользователя")
-    if len(login.strip()) < 3:
-        raise ValueError("Логин должен содержать минимум 3 символа")
-
-    user = {
-        "full_name": full_name.strip(),
-        "email": email.strip().lower(),
-        "login": login.strip(),
-        "registered_at": datetime.now(),
-    }
-    print(f"[OK] Пользователь зарегистрирован: {user['full_name']} "
-          f"(логин: {user['login']}, email: {user['email']})")
-    return user
-
- 
-def add_source(title: str, author: str, year: int, source_type: str) -> dict:
-    """Добавляет источник (книга, статья, ссылка) и возвращает его карточку."""
-    allowed_types = {"книга", "статья", "ссылка"}
-    if not title.strip():
-        raise ValueError("Название источника не может быть пустым")
-    if year < 0 or year > date.today().year + 1:
-        raise ValueError("Некорректный год издания")
-    if source_type not in allowed_types:
-        raise ValueError(f"Недопустимый тип источника. "
-                         f"Разрешены: {', '.join(allowed_types)}")
-
-    source = {
-        "title": title.strip(),
-        "author": author.strip(),
-        "year": int(year),
-        "type": source_type,
-    }
-    print(f"[OK] Источник добавлен: «{source['title']}», "
-          f"{source['author']} ({source['year']}), тип: {source['type']}")
-    return source
+from categories import create_category, list_categories
+from lists import (
+    add_source_to_list,
+    build_list_view,
+    change_reading_status,
+    create_list,
+    list_reading_lists,
+)
+from sources import (
+    add_source,
+    filter_sources_by_type,
+    find_sources,
+    list_sources,
+    sort_sources,
+)
+from storage import load_data, save_data
+from users import list_users, register_user
+from utils import input_int, input_str
 
 
-def create_category(name: str, description: str = "") -> dict:
-    """Создаёт категорию для группировки источников."""
-    if not name.strip():
-        raise ValueError("Название категории не может быть пустым")
+def show_source_list(sources: list[dict]) -> None:
+    """Вывести источники из списка."""
+    if not sources:
+        print("Источники не найдены.")
+        return
 
-    category = {
-        "name": name.strip(),
-        "description": description.strip(),
-        "sources": [],
-    }
-    print(f"[OK] Категория создана: «{category['name']}»")
-    return category
-
-
-def create_list(title: str, owner: dict) -> dict:
-    """Создаёт пользовательский список литературы."""
-    if not title.strip():
-        raise ValueError("Название списка не может быть пустым")
-    if "login" not in owner:
-        raise ValueError("Некорректный владелец списка")
-
-    reading_list = {
-        "title": title.strip(),
-        "owner": owner["login"],
-        "created_at": datetime.now(),
-        "items": [],
-        "status": "активен",
-    }
-    print(f"[OK] Список создан: «{reading_list['title']}» "
-          f"для пользователя {reading_list['owner']}")
-    return reading_list
+    for source in sources:
+        print(
+            f"  [{source['id']}] {source['title']} — "
+            f"{source['author']} ({source['year']}), {source['type']}"
+        )
 
 
-def add_source_to_list(reading_list: dict, source: dict,
-                       category: dict | None = None) -> dict:
-    """Добавляет источник в список с проверкой дублирования."""
-    if not reading_list.get("items"):
-        reading_list["items"] = []
-
-    # Проверка дублирования
-    for item in reading_list["items"]:
-        if (item["title"].lower() == source["title"].lower()
-                and item["author"].lower() == source["author"].lower()):
-            print(f"[ОТКАЗ] Источник «{source['title']}» уже есть в списке "
-                  f"«{reading_list['title']}»")
-            return reading_list
-
-    entry = {
-        "title": source["title"],
-        "author": source["author"],
-        "year": source["year"],
-        "type": source["type"],
-        "category": category["name"] if category else "без категории",
-        "status": "не начат",
-    }
-    reading_list["items"].append(entry)
-
-    if category is not None and "sources" in category:
-        category["sources"].append(source["title"])
-
-    print(f"[OK] Источник «{entry['title']}» добавлен в список "
-          f"«{reading_list['title']}» (категория: {entry['category']}, "
-          f"статус: {entry['status']})")
-    return reading_list
+def show_sources(sources: dict[int, dict]) -> None:
+    """Вывести все источники."""
+    print("\nИсточники:")
+    show_source_list(list_sources(sources))
 
 
-def change_reading_status(reading_list: dict, source_title: str,
-                          new_status: str) -> dict:
-    """Меняет статус чтения источника внутри списка."""
-    allowed = {"не начат", "в процессе", "прочитан"}
-    if new_status not in allowed:
-        raise ValueError(f"Недопустимый статус: {new_status}. "
-                         f"Разрешены: {', '.join(allowed)}")
+def show_users(users: dict[str, dict]) -> None:
+    """Вывести пользователей."""
+    user_list = list_users(users)
+    if not user_list:
+        print("Пользователи отсутствуют.")
+        return
 
-    for item in reading_list.get("items", []):
-        if item["title"].lower() == source_title.lower():
-            old = item["status"]
-            item["status"] = new_status
-            print(f"[OK] Статус «{item['title']}» изменён: "
-                  f"«{old}» → «{new_status}»")
-            return reading_list
+    print("\nПользователи:")
+    for user in user_list:
+        print(f"  {user['login']}: {user['full_name']}, {user['email']}")
 
-    print(f"[ОТКАЗ] Источник «{source_title}» не найден в списке")
-    return reading_list
 
+def show_categories(categories: dict[int, dict]) -> None:
+    """Вывести категории."""
+    category_list = list_categories(categories)
+    if not category_list:
+        print("Категории отсутствуют.")
+        return
+
+    print("\nКатегории:")
+    for category in category_list:
+        source_ids = ", ".join(
+            str(source_id) for source_id in category["source_ids"]
+        ) or "нет"
+        print(
+            f"  [{category['id']}] {category['name']} — "
+            f"{category['description']}; источники: {source_ids}"
+        )
+
+
+def show_lists(reading_lists: dict[int, dict]) -> None:
+    """Вывести списки литературы."""
+    reading_list_values = list_reading_lists(reading_lists)
+    if not reading_list_values:
+        print("Списки отсутствуют.")
+        return
+
+    print("\nСписки литературы:")
+    for reading_list in reading_list_values:
+        print(
+            f"  [{reading_list['id']}] {reading_list['title']} — "
+            f"владелец: {reading_list['owner']}, "
+            f"элементов: {len(reading_list['items'])}, "
+            f"статус: {reading_list['status']}"
+        )
+
+
+def show_list_view(
+    reading_lists: dict[int, dict],
+    sources: dict[int, dict],
+    categories: dict[int, dict],
+    list_id: int,
+) -> None:
+    """Вывести содержимое списка."""
+    rows = build_list_view(
+        reading_lists, sources, categories, list_id
+    )
+    if not rows:
+        print("Список пуст.")
+        return
+
+    print(f"\nСодержимое списка id={list_id}:")
+    for row in rows:
+        print(
+            f"  [{row['source_id']}] {row['title']} — "
+            f"{row['author']} ({row['year']}), {row['type']}, "
+            f"категория: {row['category']}, статус: {row['status']}"
+        )
+
+
+def print_menu() -> None:
+    """Вывести меню."""
+    print("\n=== Сервис управления списками литературы ===")
+    print("1. Зарегистрировать пользователя")
+    print("2. Добавить источник")
+    print("3. Создать категорию")
+    print("4. Создать список литературы")
+    print("5. Добавить источник в список")
+    print("6. Изменить статус чтения")
+    print("7. Показать источники")
+    print("8. Найти источники")
+    print("9. Отфильтровать источники по типу")
+    print("10. Сортировать источники")
+    print("11. Показать списки литературы")
+    print("12. Показать содержимое списка")
+    print("0. Выход")
 
 
 def main() -> None:
-    user = register_user(
-        full_name="user ",
-        email="eee@Example.com",
-        login="eee",
-    )
-    category = create_category(
-        name="Программирование",
-        description="Книги и статьи по разработке ПО",
-    )
-    source_book = add_source(
-        title="Чистый код",
-        author="Роберт Мартин",
-        year=2008,
-        source_type="книга",
-    )
-    source_article = add_source(
-        title="PEP 8 — Style Guide for Python Code",
-        author="Guido van Rossum",
-        year=2001,
-        source_type="статья",
-    )
-    reading_list = create_list(
-        title="Чтение на семестр",
-        owner=user,
-    )
-    add_source_to_list(reading_list, source_book, category)
-    add_source_to_list(reading_list, source_article, category)
+    """Точка запуска приложения."""
+    users, sources, categories, reading_lists = load_data()
+    print("Данные загружены.")
 
-    add_source_to_list(reading_list, source_book, category)
+    while True:
+        print_menu()
+        choice = input_int("Выберите действие: ", 0, 12)
 
-    print(f"Список «{reading_list['title']}» пользователя "
-          f"{reading_list['owner']} содержит "
-          f"{len(reading_list['items'])} источник(ов):")
-    for i, item in enumerate(reading_list["items"], start=1):
-        print(f"  {i}. {item['title']} — {item['author']} "
-              f"({item['year']}), категория: {item['category']}, "
-              f"статус: {item['status']}")
-    
+        if choice == 0:
+            print("Выход.")
+            break
+
+        try:
+            if choice == 1:
+                full_name = input_str("ФИО: ")
+                email = input_str("Email: ")
+                login = input_str("Логин: ")
+                user = register_user(users, full_name, email, login)
+                print(f"[OK] Пользователь зарегистрирован: {user['login']}")
+            elif choice == 2:
+                title = input_str("Название источника: ")
+                author = input_str("Автор: ")
+                year = input_int("Год издания: ", 0)
+                source_type = input_str("Тип (книга/статья/ссылка): ")
+                source = add_source(
+                    sources, title, author, year, source_type
+                )
+                print(f"[OK] Источник добавлен: id={source['id']}")
+            elif choice == 3:
+                name = input_str("Название категории: ")
+                description = input_str(
+                    "Описание (можно пусто): ", allow_empty=True
+                )
+                category = create_category(
+                    categories, name, description
+                )
+                print(f"[OK] Категория создана: id={category['id']}")
+            elif choice == 4:
+                show_users(users)
+                owner = input_str("Логин владельца: ")
+                if owner not in users:
+                    raise ValueError("Пользователь не найден")
+                title = input_str("Название списка: ")
+                reading_list = create_list(
+                    reading_lists, title, owner
+                )
+                print(f"[OK] Список создан: id={reading_list['id']}")
+            elif choice == 5:
+                show_lists(reading_lists)
+                show_sources(sources)
+                show_categories(categories)
+                list_id = input_int("ID списка: ", 1)
+                source_id = input_int("ID источника: ", 1)
+                category_id = input_int(
+                    "ID категории (0 — без категории): ", 0
+                )
+                add_source_to_list(
+                    reading_lists,
+                    sources,
+                    categories,
+                    list_id,
+                    source_id,
+                    None if category_id == 0 else category_id,
+                )
+                print("[OK] Источник добавлен в список.")
+            elif choice == 6:
+                show_lists(reading_lists)
+                list_id = input_int("ID списка: ", 1)
+                source_id = input_int("ID источника: ", 1)
+                new_status = input_str(
+                    "Новый статус (не начат/в процессе/прочитан): "
+                )
+                change_reading_status(
+                    reading_lists, list_id, source_id, new_status
+                )
+                print("[OK] Статус изменён.")
+            elif choice == 7:
+                show_sources(sources)
+            elif choice == 8:
+                query = input_str("Поиск по названию или автору: ")
+                show_source_list(find_sources(sources, query))
+            elif choice == 9:
+                source_type = input_str("Тип источника: ")
+                found = list(
+                    filter_sources_by_type(sources, source_type)
+                )
+                show_source_list(found)
+            elif choice == 10:
+                key = input_str("Сортировать по (title/author/year): ")
+                reverse_raw = input_str("По убыванию? (д/н): ").lower()
+                reverse = reverse_raw in {"д", "да", "y", "yes"}
+                sorted_sources = sort_sources(sources, key, reverse)
+                show_source_list(sorted_sources)
+            elif choice == 11:
+                show_lists(reading_lists)
+            elif choice == 12:
+                show_lists(reading_lists)
+                list_id = input_int("ID списка: ", 1)
+                show_list_view(
+                    reading_lists, sources, categories, list_id
+                )
+        except (ValueError, KeyError) as exc:
+            print(f"[ОШИБКА] {exc}")
+        else:
+            if choice in {1, 2, 3, 4, 5, 6}:
+                save_data(users, sources, categories, reading_lists)
+                print("[OK] Изменения сохранены в JSON.")
 
 
 if __name__ == "__main__":

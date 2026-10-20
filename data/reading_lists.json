@@ -1,0 +1,16 @@
+{
+  "1": {
+    "id": 1,
+    "title": "Чтение на семестр",
+    "owner": "ivan",
+    "created_at": "2026-10-19T12:00:00",
+    "items": [
+      {
+        "source_id": 1,
+        "category_id": 1,
+        "status": "не начат"
+      }
+    ],
+    "status": "активен"
+  }
+}

@@ -1,10 +1,10 @@
-"""Вспомогательные функции ввода и идентификаторов."""
+"""Вспомогательные функции ввода и работы с датами."""
 
 from datetime import date, datetime
 
 
 def input_str(prompt: str, allow_empty: bool = False) -> str:
-    """Запросить строку; при необходимости запретить пустой ввод."""
+    """Запросить строку; при необходимости разрешить пустой ввод."""
     while True:
         value = input(prompt).strip()
         if value or allow_empty:
@@ -44,11 +44,6 @@ def input_date(prompt: str) -> date:
             print("Введите дату в формате ДД.ММ.ГГГГ.")
 
 
-def next_id(items: dict[int, dict]) -> int:
-    """Вернуть следующий свободный целочисленный идентификатор."""
-    return max(items, default=0) + 1
-
-
 def now_iso() -> str:
-    """Вернуть текущие дату и время в формате ISO."""
+    """Текущие дата и время в формате ISO."""
     return datetime.now().isoformat(timespec="seconds")

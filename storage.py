@@ -1,8 +1,10 @@
-"""Сохранение и загрузка данных проекта в JSON."""
+"""Сохранение и загрузка данных в JSON."""
 
 import json
 from pathlib import Path
 from typing import Any
+
+from models import Category, ReadingList, Source, User
 
 DATA_DIR = Path(__file__).resolve().parent / "data"
 USERS_FILE = DATA_DIR / "users.json"
@@ -19,7 +21,10 @@ def _load_json(path: Path, default: Any) -> Any:
     except FileNotFoundError:
         return default
     except json.JSONDecodeError:
-        print(f"[ОШИБКА] Файл {path.name} повреждён. Данные не загружены.")
+        print(
+            f"[ОШИБКА] Файл {path.name} повреждён. "
+            f"Данные не загружены."
+        )
         return default
     except OSError as exc:
         print(f"[ОШИБКА] Не удалось прочитать {path.name}: {exc}")
@@ -36,42 +41,118 @@ def _save_json(path: Path, data: Any) -> None:
         print(f"[ОШИБКА] Не удалось сохранить {path.name}: {exc}")
 
 
-def _int_keys(data: dict[str, dict]) -> dict[int, dict]:
-    """Преобразовать строковые ключи JSON в целочисленные id."""
-    if not isinstance(data, dict):
-        return {}
-
-    result: dict[int, dict] = {}
-    for key, value in data.items():
+def load_users() -> dict[str, User]:
+    """Загрузить пользователей из users.json."""
+    raw = _load_json(USERS_FILE, {})
+    users: dict[str, User] = {}
+    if not isinstance(raw, dict):
+        return users
+    for login, data in raw.items():
         try:
-            result[int(key)] = value
-        except ValueError:
+            user = User.from_data(data)
+            users[login] = user
+        except (KeyError, TypeError, ValueError):
             continue
-    return result
+    return users
+
+
+def load_sources() -> dict[int, Source]:
+    """Загрузить источники из sources.json."""
+    raw = _load_json(SOURCES_FILE, {})
+    sources: dict[int, Source] = {}
+    if not isinstance(raw, dict):
+        return sources
+    for data in raw.values():
+        try:
+            source = Source.from_data(data)
+            sources[source.id] = source
+        except (KeyError, TypeError, ValueError):
+            continue
+    return sources
+
+
+def load_categories(
+    sources: dict[int, Source],
+) -> dict[int, Category]:
+    """Загрузить категории с восстановлением ссылок на источники."""
+    raw = _load_json(CATEGORIES_FILE, {})
+    categories: dict[int, Category] = {}
+    if not isinstance(raw, dict):
+        return categories
+    for data in raw.values():
+        try:
+            category = Category.from_data(data, sources)
+            categories[category.id] = category
+        except (KeyError, TypeError, ValueError):
+            continue
+    return categories
+
+
+def load_reading_lists(
+    users: dict[str, User],
+    sources: dict[int, Source],
+    categories: dict[int, Category],
+) -> dict[int, ReadingList]:
+    """Загрузить списки с восстановлением связей с User/Source/Category."""
+    raw = _load_json(LISTS_FILE, {})
+    reading_lists: dict[int, ReadingList] = {}
+    if not isinstance(raw, dict):
+        return reading_lists
+    for data in raw.values():
+        try:
+            reading_list = ReadingList.from_data(
+                data, users, sources, categories
+            )
+            if reading_list is not None:
+                reading_lists[reading_list.id] = reading_list
+        except (KeyError, TypeError, ValueError):
+            continue
+    return reading_lists
 
 
 def load_data() -> tuple[
-    dict[str, dict],
-    dict[int, dict],
-    dict[int, dict],
-    dict[int, dict],
+    dict[str, User],
+    dict[int, Source],
+    dict[int, Category],
+    dict[int, ReadingList],
 ]:
-    """Загрузить пользователей, источники, категории и списки."""
-    users = _load_json(USERS_FILE, {})
-    sources = _int_keys(_load_json(SOURCES_FILE, {}))
-    categories = _int_keys(_load_json(CATEGORIES_FILE, {}))
-    reading_lists = _int_keys(_load_json(LISTS_FILE, {}))
+    """Загрузить все данные проекта и восстановить объекты."""
+    users = load_users()
+    sources = load_sources()
+    categories = load_categories(sources)
+    reading_lists = load_reading_lists(users, sources, categories)
     return users, sources, categories, reading_lists
 
 
 def save_data(
-    users: dict[str, dict],
-    sources: dict[int, dict],
-    categories: dict[int, dict],
-    reading_lists: dict[int, dict],
+    users: dict[str, User],
+    sources: dict[int, Source],
+    categories: dict[int, Category],
+    reading_lists: dict[int, ReadingList],
 ) -> None:
-    """Сохранить все данные проекта."""
-    _save_json(USERS_FILE, users)
-    _save_json(SOURCES_FILE, sources)
-    _save_json(CATEGORIES_FILE, categories)
-    _save_json(LISTS_FILE, reading_lists)
+    """Сохранить все объекты проекта в JSON."""
+    _save_json(
+        USERS_FILE,
+        {login: user.to_dict() for login, user in users.items()},
+    )
+    _save_json(
+        SOURCES_FILE,
+        {
+            str(source.id): source.to_dict()
+            for source in sources.values()
+        },
+    )
+    _save_json(
+        CATEGORIES_FILE,
+        {
+            str(category.id): category.to_dict()
+            for category in categories.values()
+        },
+    )
+    _save_json(
+        LISTS_FILE,
+        {
+            str(rl.id): rl.to_dict()
+            for rl in reading_lists.values()
+        },
+    )

@@ -1,105 +1,94 @@
 """Консольное приложение управления списками литературы."""
 
-from categories import create_category, list_categories
-from lists import (
+from models import Category, ReadingList, Source, User
+from models.categories import (
+    create_category,
+    list_categories,
+)
+from models.lists import (
     add_source_to_list,
     build_list_view,
     change_reading_status,
     create_list,
     list_reading_lists,
 )
-from sources import (
+from models.sources import (
     add_source,
     filter_sources_by_type,
     find_sources,
     list_sources,
     sort_sources,
 )
+from models.users import (
+    find_user,
+    list_users,
+    register_user,
+)
 from storage import load_data, save_data
-from users import list_users, register_user
 from utils import input_int, input_str
 
 
-def show_source_list(sources: list[dict]) -> None:
-    """Вывести источники из списка."""
+def show_source_list(sources: list[Source]) -> None:
+    """Вывести источники."""
     if not sources:
         print("Источники не найдены.")
         return
-
     for source in sources:
-        print(
-            f"  [{source['id']}] {source['title']} — "
-            f"{source['author']} ({source['year']}), {source['type']}"
-        )
+        print(f"  [{source.id}] {source}")
 
 
-def show_sources(sources: dict[int, dict]) -> None:
+def show_sources(sources: dict[int, Source]) -> None:
     """Вывести все источники."""
     print("\nИсточники:")
     show_source_list(list_sources(sources))
 
 
-def show_users(users: dict[str, dict]) -> None:
+def show_users(users: dict[str, User]) -> None:
     """Вывести пользователей."""
     user_list = list_users(users)
     if not user_list:
         print("Пользователи отсутствуют.")
         return
-
     print("\nПользователи:")
     for user in user_list:
-        print(f"  {user['login']}: {user['full_name']}, {user['email']}")
+        print(f"  [{user.id}] {user}")
 
 
-def show_categories(categories: dict[int, dict]) -> None:
+def show_categories(categories: dict[int, Category]) -> None:
     """Вывести категории."""
     category_list = list_categories(categories)
     if not category_list:
         print("Категории отсутствуют.")
         return
-
     print("\nКатегории:")
     for category in category_list:
-        source_ids = ", ".join(
-            str(source_id) for source_id in category["source_ids"]
-        ) or "нет"
-        print(
-            f"  [{category['id']}] {category['name']} — "
-            f"{category['description']}; источники: {source_ids}"
-        )
+        print(f"  [{category.id}] {category}")
 
 
-def show_lists(reading_lists: dict[int, dict]) -> None:
+def show_lists(reading_lists: dict[int, ReadingList]) -> None:
     """Вывести списки литературы."""
-    reading_list_values = list_reading_lists(reading_lists)
-    if not reading_list_values:
+    values = list_reading_lists(reading_lists)
+    if not values:
         print("Списки отсутствуют.")
         return
-
     print("\nСписки литературы:")
-    for reading_list in reading_list_values:
-        print(
-            f"  [{reading_list['id']}] {reading_list['title']} — "
-            f"владелец: {reading_list['owner']}, "
-            f"элементов: {len(reading_list['items'])}, "
-            f"статус: {reading_list['status']}"
-        )
+    for reading_list in values:
+        print(f"  [{reading_list.id}] {reading_list}")
 
 
 def show_list_view(
-    reading_lists: dict[int, dict],
-    sources: dict[int, dict],
-    categories: dict[int, dict],
+    reading_lists: dict[int, ReadingList],
     list_id: int,
 ) -> None:
     """Вывести содержимое списка."""
-    rows = build_list_view(
-        reading_lists, sources, categories, list_id
-    )
+    try:
+        rows = build_list_view(reading_lists, list_id)
+    except KeyError as exc:
+        print(f"[ОШИБКА] {exc}")
+        return
     if not rows:
         print("Список пуст.")
         return
-
     print(f"\nСодержимое списка id={list_id}:")
     for row in rows:
         print(
@@ -146,7 +135,7 @@ def main() -> None:
                 email = input_str("Email: ")
                 login = input_str("Логин: ")
                 user = register_user(users, full_name, email, login)
-                print(f"[OK] Пользователь зарегистрирован: {user['login']}")
+                print(f"[OK] Пользователь зарегистрирован: {user}")
             elif choice == 2:
                 title = input_str("Название источника: ")
                 author = input_str("Автор: ")
@@ -155,7 +144,7 @@ def main() -> None:
                 source = add_source(
                     sources, title, author, year, source_type
                 )
-                print(f"[OK] Источник добавлен: id={source['id']}")
+                print(f"[OK] Источник добавлен: {source}")
             elif choice == 3:
                 name = input_str("Название категории: ")
                 description = input_str(
@@ -164,17 +153,18 @@ def main() -> None:
                 category = create_category(
                     categories, name, description
                 )
-                print(f"[OK] Категория создана: id={category['id']}")
+                print(f"[OK] Категория создана: {category}")
             elif choice == 4:
                 show_users(users)
-                owner = input_str("Логин владельца: ")
-                if owner not in users:
+                login = input_str("Логин владельца: ")
+                owner = find_user(users, login)
+                if owner is None:
                     raise ValueError("Пользователь не найден")
                 title = input_str("Название списка: ")
                 reading_list = create_list(
                     reading_lists, title, owner
                 )
-                print(f"[OK] Список создан: id={reading_list['id']}")
+                print(f"[OK] Список создан: {reading_list}")
             elif choice == 5:
                 show_lists(reading_lists)
                 show_sources(sources)
@@ -184,13 +174,16 @@ def main() -> None:
                 category_id = input_int(
                     "ID категории (0 — без категории): ", 0
                 )
+                source = sources.get(source_id)
+                if source is None:
+                    raise ValueError("Источник не найден")
+                category = None
+                if category_id > 0:
+                    category = categories.get(category_id)
+                    if category is None:
+                        raise ValueError("Категория не найдена")
                 add_source_to_list(
-                    reading_lists,
-                    sources,
-                    categories,
-                    list_id,
-                    source_id,
-                    None if category_id == 0 else category_id,
+                    reading_lists, list_id, source, category
                 )
                 print("[OK] Источник добавлен в список.")
             elif choice == 6:
@@ -211,9 +204,7 @@ def main() -> None:
                 show_source_list(find_sources(sources, query))
             elif choice == 9:
                 source_type = input_str("Тип источника: ")
-                found = list(
-                    filter_sources_by_type(sources, source_type)
-                )
+                found = list(filter_sources_by_type(sources, source_type))
                 show_source_list(found)
             elif choice == 10:
                 key = input_str("Сортировать по (title/author/year): ")
@@ -226,9 +217,7 @@ def main() -> None:
             elif choice == 12:
                 show_lists(reading_lists)
                 list_id = input_int("ID списка: ", 1)
-                show_list_view(
-                    reading_lists, sources, categories, list_id
-                )
+                show_list_view(reading_lists, list_id)
         except (ValueError, KeyError) as exc:
             print(f"[ОШИБКА] {exc}")
         else:

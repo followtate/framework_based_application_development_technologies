@@ -1,162 +1,48 @@
-# Сервис управления списками литературы (ООП-версия)
+# Сервис управления списками литературы — веб-версия на Django
 
-## Назначение
+Учебный проект по дисциплине «Технологии разработки приложений на базе
+фреймворков». Развивается поэтапно: консольное приложение на Python (ПР1–ПР3)
+и веб-интерфейс на Django (ПР5).
 
-Приложение для ведения списков литературы: источники (книги, статьи, ссылки),
-категории и пользовательские списки чтения. Реализовано в объектной модели Python.
+## 1. Назначение
 
-## Возможности
+Приложение для ведения библиографии и списков чтения: источники (книги,
+статьи, ссылки), тематические категории, пользовательские списки литературы
+с отметкой статуса чтения. В ПР5 консольное приложение ПР3 дополнено
+веб-интерфейсом на Django.
 
-- регистрация пользователя с проверкой email и уникальности логина;
-- добавление источника (книга / статья / ссылка);
-- создание категорий с привязкой источников;
-- создание списка литературы, привязанного к объекту `User`;
-- добавление источников в список с проверкой дублирования;
-- изменение статуса чтения (`не начат`, `в процессе`, `прочитан`);
-- поиск и фильтрация источников;
-- сортировка источников через `lambda`;
-- сохранение и загрузка данных в JSON;
-- обработка некорректного ввода и ошибок файлов.
+## 2. Используемые технологии
 
-## Классы предметной области
+- Python 3.10+;
+- Django 5.2;
+- HTML5;
+- CSS3, Bootstrap 5.3 (подключение CSS через CDN);
+- Bootstrap Icons (через CDN);
+- Bootstrap JS bundle (через CDN) — для интерактивных компонентов навбара;
+- Google Fonts, Inter (через CDN);
+- JSON — хранилище данных (Django ORM пока не используется);
+- pytest, flake8;
+- Git.
 
-### `User` — пользователь
+Django Template Language (DTL) и собственные статические файлы проекта
+(собственный CSS-файл, собственный JavaScript-файл, изображения через
+`{% static %}`) на этом этапе **не используются** — они появятся при переходе
+на систему шаблонов на следующей практической работе.
 
-Атрибуты: `id`, `full_name`, `email`, `login`, `registered_at`.
-Методы: `__str__`, `validate_email()` (`@staticmethod`), `from_data()` (`@classmethod`), `to_dict()`.
-Свойства: `display_name` (`@property`).
+## 3. Предметная область
 
-### `Source` — источник
+Четыре сущности (классы предметной области из ПР3):
 
-Атрибуты: `id`, `title`, `author`, `year`, `type`.
-Методы: `__str__`, `matches()`, `is_valid_year()` (`@staticmethod`), `is_allowed_type()` (`@staticmethod`), `from_data()` (`@classmethod`), `to_dict()`.
+- **User** — пользователь-владелец списков: `id`, `full_name`, `email`,
+  `login`, `registered_at`;
+- **Source** — источник: `id`, `title`, `author`, `year`, `type`
+  (книга / статья / ссылка);
+- **Category** — тематическая категория: `id`, `name`, `description`,
+  `sources`;
+- **ReadingList** — список литературы: `id`, `title`, `owner` (объект `User`),
+  `items` (записи с `source`, `category`, `status`), `status`, `created_at`.
 
-### `Category` — категория
+Сущности реализованы как Python-классы в пакете `models/`. Веб-слой использует
+их напрямую, без дублирования логики.
 
-Атрибуты: `id`, `name`, `description`, `sources: list[Source]`.
-Методы: `__str__`, `add_source()`, `from_data()` (`@classmethod`), `to_dict()`.
-Свойства: `source_count` (`@property`).
-
-### `ReadingList` — список литературы
-
-Атрибуты: `id`, `title`, `owner: User`, `items: list[dict]` (с `source: Source`, `category: Category | None`, `status: str`), `status`, `created_at`.
-Методы: `__str__`, `add_entry()`, `change_status()`, `from_data()` (`@classmethod`), `to_dict()`.
-Свойства: `total_sources`, `completed_sources` (`@property`).
-
-## Взаимодействие объектов
-
-```
-ReadingList.owner  → User
-ReadingList.items[i].source    → Source
-ReadingList.items[i].category  → Category
-Category.sources[i]            → Source
-```
-
-`ReadingList` связывает `User` с набором `Source` (через записи с категорией и статусом).
-`Category` агрегирует `Source` по тематике.
-
-## Архитектура
-
-```
-literature_service/
-├── main.py               # консольное меню
-├── storage.py            # JSON ↔ объекты
-├── utils.py              # безопасный ввод
-├── models/
-│   ├── __init__.py
-│   ├── users.py          # User + регистрация/поиск
-│   ├── sources.py        # Source + поиск/фильтр/сортировка
-│   ├── categories.py     # Category + создание/поиск
-│   └── lists.py          # ReadingList + работа со списками
-├── data/                 # JSON-хранилище
-├── tests/                # pytest
-├── setup.cfg             # настройки flake8
-└── requirements.txt
-```
-
-## Формат данных
-
-`data/users.json` — ключ — логин:
-
-```json
-{
-  "ivan": {
-    "id": 1,
-    "full_name": "Иван Петров",
-    "email": "ivan@example.com",
-    "login": "ivan",
-    "registered_at": "2026-10-20T12:00:00"
-  }
-}
-```
-
-`data/sources.json`:
-
-```json
-{
-  "1": {
-    "id": 1,
-    "title": "Чистый код",
-    "author": "Роберт Мартин",
-    "year": 2008,
-    "type": "книга"
-  }
-}
-```
-
-`data/categories.json`:
-
-```json
-{
-  "1": {
-    "id": 1,
-    "name": "Программирование",
-    "description": "Книги и статьи",
-    "source_ids": [1]
-  }
-}
-```
-
-`data/reading_lists.json`:
-
-```json
-{
-  "1": {
-    "id": 1,
-    "title": "Чтение на семестр",
-    "owner": "ivan",
-    "items": [{ "source_id": 1, "category_id": 1, "status": "не начат" }],
-    "status": "активен",
-    "created_at": "2026-10-20T12:00:00"
-  }
-}
-```
-
-При сохранении объектные ссылки (`ReadingList.owner`, `item["source"]`,
-`item["category"]`, `Category.sources`) преобразуются в `login`/`id`.
-При загрузке — обратно в объекты.
-
-## Запуск
-
-```bash
-python3 main.py
-```
-
-## Тесты
-
-```bash
-python3 -m pytest -v
-```
-
-## Проверка качества кода
-
-```bash
-python3 -m flake8
-```
-
-## Ограничения
-
-Проект использует только стандартную библиотеку Python 3.10+.
-Классы не наследуются от пользовательских базовых классов: иерархия
-в предметной области не требует наследования, а композиция
-(`ReadingList` → `User`, `Source`, `Category`) полностью покрывает связи.
+## 4. Структура проекта

@@ -115,6 +115,8 @@ class ReadingList:
         self.items.append(
             {"source": source, "category": category, "status": "не начат"}
         )
+        if category is not None:
+            category.add_source(source)
         return True
 
     def change_status(self, source_id: int, new_status: str) -> bool:

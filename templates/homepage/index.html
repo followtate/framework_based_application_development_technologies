@@ -1,0 +1,13 @@
+{% extends "base.html" %}
+{% block title %}
+  Главная — Читальня
+{% endblock %}
+{% block content %}
+  <div class="p-5 mb-4 bg-light rounded-3 shadow-sm">
+    <h1 class="display-5 fw-bold">Добро пожаловать в Читальню</h1>
+    <p class="lead">Управляйте библиографией, категориями и списками чтения.</p>
+    <a href="{% url 'sources:list' %}" class="btn btn-primary btn-lg me-2">Источники</a>
+    <a href="{% url 'lists:list' %}"
+       class="btn btn-outline-secondary btn-lg">Мои списки</a>
+  </div>
+{% endblock %}

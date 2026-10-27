@@ -1,0 +1,8 @@
+{
+  "profile": "django",
+  "indent": 4,
+  "max_line_length": 99,
+  "format_css": false,
+  "format_js": false,
+  "preserve_blank_lines": true
+}

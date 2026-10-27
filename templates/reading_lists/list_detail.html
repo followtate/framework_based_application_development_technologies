@@ -1,0 +1,34 @@
+{% extends "base.html" %}
+
+{% block title %}
+  {% if reading_list %}{{ reading_list.title }} — Читальня{% else %}Список не найден{% endif %}
+{% endblock %}
+
+{% block content %}
+  {% if reading_list %}
+    <h1>{{ reading_list.title }}</h1>
+    <p class="lead">Владелец: {{ reading_list.owner.display_name }}</p>
+
+    <ul class="list-group mb-3">
+      {% for item in reading_list.items %}
+        <li class="list-group-item d-flex justify-content-between align-items-center">
+          <div>
+            <a href="{% url 'sources:detail' item.source.id %}"
+               class="text-decoration-none">{{ item.source.title }}</a>
+            <div class="text-muted small mt-1">
+              {{ item.source.author }}
+              {% if item.category %}· {{ item.category.name }}{% else %}· без категории{% endif %}
+            </div>
+          </div>
+          {% include "reading_lists/includes/status_badge.html" with item=item %}
+        </li>
+      {% empty %}
+        <li class="list-group-item text-muted">В этом списке пока нет источников.</li>
+      {% endfor %}
+    </ul>
+  {% else %}
+    <h1 class="text-danger">Список не найден</h1>
+    <p class="text-muted">Возможно, идентификатор указан неверно.</p>
+  {% endif %}
+  <a href="{% url 'lists:list' %}" class="btn btn-outline-secondary">← К спискам</a>
+{% endblock %}

@@ -1,0 +1,19 @@
+{% extends "base.html" %} {% block title %} {% if source %}{{ source.title }} —
+Читальня{% else %}Источник не найден{% endif %} {% endblock %}
+{% block content %}
+
+  {% if source %}
+    <div class="card shadow-sm">
+      <div class="card-body">
+        <h1>{{ source.title }}</h1>
+        <p class="text-muted mb-3">{{ source.author }}, {{ source.year }}</p>
+        <p><span class="badge bg-primary">{{ source.type }}</span></p>
+      </div>
+    </div>
+  {% else %}
+    <h1 class="text-danger">Источник не найден</h1>
+    <p class="text-muted">Возможно, идентификатор указан неверно.</p>
+  {% endif %}
+  <a href="{% url 'sources:list' %}"
+     class="btn btn-outline-secondary mt-3">← К источникам</a>
+{% endblock %}

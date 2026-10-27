@@ -1,0 +1,7 @@
+{% if item.status == "прочитан" %}
+<span class="badge bg-success booking-status">Прочитан</span>
+{% elif item.status == "в процессе" %}
+<span class="badge bg-warning text-dark booking-status">В процессе</span>
+{% else %}
+<span class="badge bg-secondary booking-status">Не начат</span>
+{% endif %}

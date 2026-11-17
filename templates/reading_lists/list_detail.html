@@ -1,26 +1,31 @@
-{% extends "base.html" %}
-
-{% block title %}
-  {% if reading_list %}{{ reading_list.title }} — Читальня{% else %}Список не найден{% endif %}
+{% extends "base.html" %} {% block title %} {% if reading_list %}{{
+  reading_list.title }} — Читальня{% else %}Список не найден{% endif %}
 {% endblock %}
 
 {% block content %}
+
   {% if reading_list %}
     <h1>{{ reading_list.title }}</h1>
-    <p class="lead">Владелец: {{ reading_list.owner.display_name }}</p>
+    <p class="lead">Владелец: {{ reading_list.owner.full_name }}</p>
 
     <ul class="list-group mb-3">
-      {% for item in reading_list.items %}
+      {% for item in items %}
         <li class="list-group-item d-flex justify-content-between align-items-center">
           <div>
             <a href="{% url 'sources:detail' item.source.id %}"
                class="text-decoration-none">{{ item.source.title }}</a>
             <div class="text-muted small mt-1">
-              {{ item.source.author }}
+              {{ item.source.author }} ({{ item.source.year }})
               {% if item.category %}· {{ item.category.name }}{% else %}· без категории{% endif %}
             </div>
           </div>
-          {% include "reading_lists/includes/status_badge.html" with item=item %}
+          {% if item.status == "прочитан" %}
+            <span class="badge bg-success booking-status">Прочитан</span>
+          {% elif item.status == "в процессе" %}
+            <span class="badge bg-warning text-dark booking-status">В процессе</span>
+          {% else %}
+            <span class="badge bg-secondary booking-status">Не начат</span>
+          {% endif %}
         </li>
       {% empty %}
         <li class="list-group-item text-muted">В этом списке пока нет источников.</li>
@@ -28,7 +33,6 @@
     </ul>
   {% else %}
     <h1 class="text-danger">Список не найден</h1>
-    <p class="text-muted">Возможно, идентификатор указан неверно.</p>
   {% endif %}
   <a href="{% url 'lists:list' %}" class="btn btn-outline-secondary">← К спискам</a>
 {% endblock %}

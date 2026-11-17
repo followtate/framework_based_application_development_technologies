@@ -1,1 +1,9 @@
-{}
+{
+  "ivan": {
+    "id": 1,
+    "login": "ivan",
+    "full_name": "Иван Петров",
+    "email": "ivan@example.com",
+    "registered_at": "2026-10-19T12:00:00"
+  }
+}

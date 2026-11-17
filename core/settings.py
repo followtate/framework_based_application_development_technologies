@@ -26,6 +26,7 @@ INSTALLED_APPS = [
     "sources",
     "categories",
     "reading_lists",
+    "users",
 ]
 
 MIDDLEWARE = [

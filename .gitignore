@@ -1,18 +1,25 @@
+# Django
+db.sqlite3
+*.log
 
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+
+# Virtualenv
 venv/
 .venv/
 env/
 
-__pycache__/
-*.py[cod]
-*$py.class
-.idea/
-.vscode/
-*.swp
+# macOS
 .DS_Store
-Thumbs.db
-*.log
+
+# IDE
+.vscode/
+.idea/
+
+# Тесты / кэш
 .pytest_cache/
-*.egg-info/core/settings.py.backup
-*.backup
-*.bak
+.coverage
+htmlcov/

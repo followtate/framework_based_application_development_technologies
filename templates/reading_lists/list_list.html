@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %} Списки литературы — Читальня
+{% block title %}Списки литературы — Читальня
 {% endblock %}
 
 {% block content %}
@@ -12,7 +12,7 @@
         <div class="card shadow-sm h-100">
           <div class="card-body">
             <h5 class="card-title">{{ rl.title }}</h5>
-            <p class="text-muted mb-2">Владелец: {{ rl.owner.display_name }}</p>
+            <p class="text-muted mb-2">Владелец: {{ rl.owner.full_name }}</p>
             <p class="mb-3">
               Источников: {{ rl.total_sources }} · прочитано: {{
                 rl.completed_sources }}

@@ -1,0 +1,41 @@
+{% extends "base.html" %} {% block title %}Статистика — Читальня{% endblock %}
+{% block content %}
+<h1 class="mb-4">Статистика</h1>
+
+<div class="row g-3">
+  <div class="col-md-6">
+    <div class="card shadow-sm">
+      <div class="card-body">
+        <h5 class="card-title">Источники по типам</h5>
+        <ul class="list-group list-group-flush">
+          {% for item in by_type %}
+          <li class="list-group-item d-flex justify-content-between">
+            <span>{{ item.type }}</span>
+            <span class="badge bg-primary">{{ item.count }}</span>
+          </li>
+          {% empty %}
+          <li class="list-group-item text-muted">Нет данных.</li>
+          {% endfor %}
+        </ul>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-6">
+    <div class="card shadow-sm">
+      <div class="card-body">
+        <h5 class="card-title">Категории по числу источников</h5>
+        <ul class="list-group list-group-flush">
+          {% for item in top_categories %}
+          <li class="list-group-item d-flex justify-content-between">
+            <span>{{ item.name }}</span>
+            <span class="badge bg-success">{{ item.count }}</span>
+          </li>
+          {% empty %}
+          <li class="list-group-item text-muted">Нет данных.</li>
+          {% endfor %}
+        </ul>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

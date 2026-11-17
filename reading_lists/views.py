@@ -1,17 +1,40 @@
-from django.shortcuts import render
+"""Представления для списков литературы."""
 
-from storage import load_data
+from django.db.models import Count, Q
+from django.shortcuts import get_object_or_404, render
+
+from .models import ReadingList, ReadingListItem
 
 
 def lists(request):
-    _, _, _, reading_lists = load_data()
-    context = {"lists": list(reading_lists.values())}
-    return render(request, "reading_lists/list_list.html", context)
+    """Список списков литературы с подсчётом элементов."""
+    reading_lists = (
+        ReadingList.objects.select_related("owner")
+        .annotate(
+            total_sources=Count("items"),
+            completed_sources=Count(
+                "items",
+                filter=Q(items__status=ReadingListItem.ReadingStatus.DONE),
+            ),
+        )
+        .order_by("-created_at")
+    )
+    return render(
+        request,
+        "reading_lists/list_list.html",
+        {"lists": reading_lists},
+    )
 
 
 def list_detail(request, list_id):
-    _, _, _, reading_lists = load_data()
-    reading_list = reading_lists.get(list_id)
-    context = {"reading_list": reading_list}
-    status = 404 if reading_list is None else 200
-    return render(request, "reading_lists/list_detail.html", context, status=status)
+    """Содержимое списка литературы."""
+    reading_list = get_object_or_404(
+        ReadingList.objects.select_related("owner"),
+        id=list_id,
+    )
+    items = reading_list.items.select_related("source", "category")
+    return render(
+        request,
+        "reading_lists/list_detail.html",
+        {"reading_list": reading_list, "items": items},
+    )

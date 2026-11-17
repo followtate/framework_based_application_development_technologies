@@ -4,14 +4,14 @@
 фреймворков». Развивается поэтапно: консольное приложение на Python (ПР1–ПР3),
 веб-интерфейс на Django (ПР5) и Django-шаблоны со статикой (ПР6).
 
-## 1. Назначение
+1. Назначение
 
 Приложение для ведения библиографии и списков чтения: источники (книги,
 статьи, ссылки), тематические категории, пользовательские списки литературы
 с отметкой статуса чтения. В ПР6 веб-интерфейс проекта переведён с
 формирования HTML в Python на систему шаблонов Django.
 
-## 2. Используемые технологии
+2. Используемые технологии
 
 - Python 3.10+;
 - Django 5.2;
@@ -26,7 +26,7 @@
 - pytest, flake8;
 - Git.
 
-## 3. Предметная область
+3. Предметная область
 
 Четыре сущности (классы предметной области из ПР3):
 
@@ -43,7 +43,7 @@
 их напрямую, без дублирования логики. Данные хранятся в JSON-файлах
 (`data/*.json`), Django ORM пока не используется.
 
-## 4. Структура проекта
+4. Структура проекта
 
 framework_based_applications_for_uni/
 ├── core/ # настройки Django
@@ -106,7 +106,7 @@ framework_based_applications_for_uni/
 ├── setup.cfg # настройки flake8
 └── README.md
 
-## 5. Веб-интерфейс
+5. Веб-интерфейс
 
 Двухуровневая маршрутизация: корневой `core/urls.py` подключает маршруты
 приложений через `include()`, в каждом приложении — свой `urls.py`
@@ -129,7 +129,7 @@ framework_based_applications_for_uni/
 `templates/404.html`. View-функции для несуществующих объектов возвращают
 ответ со статусом 404.
 
-## 6. Django Template Language
+6. Django Template Language
 
 HTML вынесен из Python-кода в `.html`-файлы. Функция `page()` из ПР5 удалена:
 view-функции готовят контекст и вызывают `render()`, разметку формирует шаблон.
@@ -166,40 +166,34 @@ img/logo.svg — логотип проекта.
 {% static 'homepage/...' %}. Bootstrap 5.3 и Bootstrap Icons подключены
 через CDN и дополнены собственными стилями.
 
-8. Хранение данных
+8. Хранение данных (ПР9: Django ORM)
 
-Данные хранятся в JSON-файлах data/*.json. При запуске storage.py
-преобразует JSON в объекты User, Source, Category, ReadingList;
-связи восстанавливаются по login/id. Django ORM и реляционная база
-данных на текущем этапе не используются.
+Данные хранятся в реляционной БД SQLite (`db.sqlite3`), доступ — через
+Django ORM. Модели описаны в `models.py` приложений `users`, `sources`,
+`categories`, `reading_lists`. Миграции — в `*/migrations/`.
 
-Пример data/sources.json:
+Модели и связи
 
-json
-{
-  "1": {
-    "id": 1,
-    "title": "Чистый код",
-    "author": "Роберт Мартин",
-    "year": 2008,
-    "type": "книга"
-  }
-}
-Пример data/reading_lists.json:
+- `users.User` — `login` (unique), `full_name`, `email`, `registered_at`;
+- `sources.Source` — `title`, `author`, `year`, `type` (TextChoices:
+  книга/статья/ссылка);
+- `categories.Category` — `name`, `description`, `sources = M2M(Source,
+  related_name="categories")`;
+- `reading_lists.ReadingList` — `title`, `owner = FK(User,
+  on_delete=CASCADE, related_name="reading_lists")`, `status`, `created_at`
+  (от абстрактной `TimeStampedModel`);
+- `reading_lists.ReadingListItem` — `reading_list = FK(ReadingList,
+  on_delete=CASCADE, related_name="items")`, `source = FK(Source,
+  on_delete=CASCADE, related_name="list_items")`, `category =
+  FK(Category, on_delete=SET_NULL, null=True)`, `status` (TextChoices).
 
-json
-{
-  "1": {
-    "id": 1,
-    "title": "Чтение на семестр",
-    "owner": "ivan",
-    "items": [
-      { "source_id": 1, "category_id": 1, "status": "не начат" }
-    ],
-    "status": "активен",
-    "created_at": "2026-10-20T12:00:00"
-  }
-}
+
+### ORM-запросы
+
+Минимум 15 ORM-выражений реализовано в представлениях:
+`all`, `get_object_or_404`, `filter`, `exclude`, `Q`, `order_by`,
+`select_related`, `prefetch_related`, `aggregate`, `annotate`, `Count`,
+`Paginator`. Подробный чек-лист — в отчёте по ПР9.
 9. Запуск
 
 Веб-версия (Django)
@@ -276,3 +270,49 @@ DEBUG = True в settings.py — для разработки. Для провер
 страницы 404 временно выставить DEBUG = False и ALLOWED_HOSTS,
 после проверки вернуть обратно.
 ```
+
+## Django/SQLite-слой (ПР7)
+
+Данные проекта перенесены из JSON-файлов в SQLite. Django-представления
+получают результаты SQL-запросов через `sqlite3` (без Django ORM — это
+следующий этап).
+
+### Структура базы данных
+
+- `users` — пользователи: `id`, `login`, `full_name`, `email`, `registered_at`;
+- `sources` — источники: `id`, `title`, `author`, `year`, `type`;
+- `categories` — категории: `id`, `name`, `description`;
+- `category_sources` — связь M:N источник ↔ категория (`category_id`, `source_id`);
+- `reading_lists` — списки литературы: `id`, `title`, `owner_id` (FK → `users.id`),
+  `status`, `created_at`;
+- `reading_list_items` — элементы списка: `id`, `reading_list_id` (FK),
+  `source_id` (FK), `category_id` (FK, nullable), `status`.
+
+Первичные ключи — `id` в каждой таблице. Внешние ключи включены через
+`PRAGMA foreign_keys = ON`.
+
+### Файлы
+
+- `sql/schema.sql` — CREATE TABLE;
+- `sql/queries.sql` — 12 SQL-запросов проекта (списки, WHERE, JOIN, агрегаты,
+  GROUP BY, HAVING);
+- `db/database.py` — подключение к SQLite с `row_factory = sqlite3.Row`;
+- `db/import_json.py` — импорт данных из JSON в SQLite;
+- `data/literature.sqlite` — файл базы данных.
+
+### Страницы, использующие SQLite
+
+- `/` — главная со статистикой из БД;
+- `/sources/` — список источников (`ORDER BY title`);
+- `/sources/<id>/` — карточка источника + категории (JOIN);
+- `/sources/search/?q=...` — поиск по названию/автору (`LIKE`, параметризованный);
+- `/sources/stats/` — статистика: источники по типам и категории по числу
+  источников (GROUP BY + HAVING);
+- `/lists/` — списки литературы с подсчётом элементов и прочитанных (GROUP BY);
+- `/lists/<id>/` — содержимое списка (JOIN sources + categories);
+- `/categories/` — категории с числом источников (LEFT JOIN + COUNT).
+
+### Параметризованные запросы
+
+Все значения, приходящие от пользователя (`source_id`, `list_id`, строка
+поиска `q`), передаются через `?`, без f-строк и конкатенации.
